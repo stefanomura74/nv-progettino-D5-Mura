@@ -281,6 +281,21 @@ exit
 │   ├── Dockerfile
 │   └── consumer.py
 └── db/
-    ├── init.sql
-    └── famiglie.csv
+│   ├── init.sql
+│   └── famiglie.csv
+└── screenshots/
+    ├── image-1.png
+    ├── ...
+    └── image-n.png
 ```
+
+## 7. Riflessioni e punti aperti
+
+(Cosa hai scoperto facendolo, eventuali difficoltà incontrate, cosa
+miglioreresti, eventuali domande aperte. Non è un riempitivo: è la
+parte che meglio mostra che hai capito ciò che hai fatto.)
+
+## 8. Riferimenti
+
+(Link a documentazione ufficiale, articoli, slide del corso, guide
+dei materiali del corso che hai usato.)

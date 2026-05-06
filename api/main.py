@@ -32,6 +32,7 @@ def audit_event(endpoint, params, client_ip):
             event = {
                 "timestamp": datetime.now(timezone.utc).isoformat(),
                 "endpoint": endpoint,
+                #"params": params
                 # hashing parameters for privacy before sending to Redis
                 "params": {k: (hash(v) if isinstance(v, str) else v) for k, v in params.items()},
                 "client_ip": client_ip
