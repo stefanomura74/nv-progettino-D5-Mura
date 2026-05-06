@@ -125,26 +125,26 @@ docker compose logs audit-log
 
 Aprire `http://localhost:8080` — si apre l'interfaccia di ricerca. Inserire un nome parziale (es. "simon") e premere Search. La tabella mostra Nome, Anno nascita, Cittadinanza, Sesso:
 
-![alt text](image-3.png)
+![alt text](screenshots/image-3.png)
 
-![alt text](image-1.png)
+![alt text](screenshots/image-1.png)
 
 Il log si popola con la ricerca:
 ```bash
 $ docker compose exec audit-log cat /audit-data/audit.log
 ```
-![alt text](image-5.png)
+![alt text](screenshots/image-5.png)
 
 Effettuando una successiva ricerca:
 
-![alt text](image-2.png)
+![alt text](screenshots/image-2.png)
 
 Il log aggiunge la nuova riga:
 
 ```bash
 $ docker compose exec audit-log cat /audit-data/audit.log
 ```
-![alt text](image-4.png)
+![alt text](screenshots/image-4.png)
 
 Una volta controllato il funzionamento, prima di mettere i produzione si può fare un hash del parametro (o dei parametri) di ricerca, se contengono dati riservati (in questo caso il nome) che non sono rilevanti per il trattamento:
 
