@@ -63,6 +63,30 @@ Internet (browser)
 
 **Pattern di audit:** l'API scrive l'evento su una lista Redis (`RPUSH audit_queue`) in un thread daemon separato, senza attendere la risposta. Il consumer `audit-log` legge dalla coda con `BLPOP` (bloccante con timeout) e scrive sia su PostgreSQL che su file. Se `audit-log` è temporaneamente spento, gli eventi si accumulano in Redis e vengono consumati al riavvio — nessun evento viene perso.
 
+### 2.1 Struttura del repository
+
+```
+.
+├── docker-compose.yml
+├── README.md (this)
+├── frontend/
+│   └── index.html
+├── api/
+│   ├── Dockerfile
+│   ├── requirements.txt
+│   └── main.py
+├── audit-log/
+│   ├── Dockerfile
+│   └── consumer.py
+└── db/
+│   ├── init.sql
+│   └── famiglie.csv
+└── screenshots/
+    ├── image-1.png
+    ├── ...
+    └── image-n.png
+```
+
 ---
 
 ## 3. Prerequisiti
@@ -189,9 +213,14 @@ curl "http://localhost:3000/search"
 # Output atteso: {"error": "Parametro nome obbligatorio"} con HTTP 400
 ```
 
+![alt text](screenshots/image7.png)
+
 ### 5.3 Documentazione API (Swagger)
 
 Aprire `http://localhost:3000/apidocs` — interfaccia Swagger con la route `/search` documentata e testabile.
+
+![alt text](screenshots/image8.png)
+
 
 ### 5.4 Verifica audit log
 
@@ -200,7 +229,10 @@ Aprire `http://localhost:3000/apidocs` — interfaccia Swagger con la route `/se
 docker compose exec audit psql -U audituser -d auditdb \
   -c "SELECT * FROM audit_log ORDER BY timestamp DESC LIMIT 5;"
 # Output atteso: righe con timestamp, endpoint /search, params, client_ip
+```
+![alt text](screenshots/image9.png)
 
+```bash
 # Controllare il file append-only
 docker compose exec audit-log cat /audit-data/audit.log
 # Output atteso: una riga JSON per ogni ricerca effettuata
@@ -265,29 +297,36 @@ exit
 
 ---
 
-## 6. Struttura del repository
+## 6. Riflessioni progettuali
 
-```
-.
-├── docker-compose.yml
-├── README.md
-├── frontend/
-│   └── index.html
-├── api/
-│   ├── Dockerfile
-│   ├── requirements.txt
-│   └── main.py
-├── audit-log/
-│   ├── Dockerfile
-│   └── consumer.py
-└── db/
-│   ├── init.sql
-│   └── famiglie.csv
-└── screenshots/
-    ├── image-1.png
-    ├── ...
-    └── image-n.png
-```
+### 6.1 Degradazione del servizio se `audit-log` cade
+
+La scelta progettuale centrale è stata rendere l'audit **completamente asincrono e non bloccante**. L'API scrive l'evento su Redis in un thread daemon separato con un `try/except` che inghiotte silenziosamente gli errori: se Redis non è raggiungibile, la ricerca risponde comunque all'utente. Se `audit-log` è spento, gli eventi si accumulano nella lista Redis `audit_queue` e vengono consumati al riavvio — nessun evento viene perso fintanto che Redis è attivo. La scelta opposta — audit sincrono via HTTP — avrebbe garantito zero eventi persi ma degradato la UX ogni volta che il servizio di audit fosse lento o irraggiungibile. E' compito del progettista/analista stabilire se per un dataset anagrafico consultabile da operatori, la continuità del servizio è prioritaria rispetto alla garanzia assoluta di ogni singolo evento di audit.
+
+### 6.2 Come rendere l'audit log non manomissibile
+
+L'implementazione attuale scrive in append su PostgreSQL e su file, ma entrambi sono modificabili da chiunque abbia accesso al container o al volume. Per una soluzione robusta si possono combinare più approcci. In questo progetto di prova si potrebbe usare l'**append-only a livello database**: PostgreSQL supporta policy di row-level security che impediscono UPDATE e DELETE sulla tabella audit. 
+
+Nella PA, si usa anche l'**esternalizzazione su WORM storage** (Write Once Read Many): i log vengono scritti su un bucket S3 con Object Lock abilitato, che impedisce fisicamente la cancellazione o modifica per un periodo definito.
+ 
+In alternativa, la firma digitale periodica dei log con una chiave privata custodita separatamente fornisce non ripudiabilità verificabile.
+
+### 6.3 Compliance GDPR nell'audit log
+
+Il dataset contiene dati personali (nome, anno di nascita, cittadinanza, sesso). L'audit log attuale registra il parametro di ricerca `nome` in chiaro — questo è problematico perché il log stesso diventa un archivio di dati personali soggetto al GDPR, con obblighi di retention, cancellazione e accesso. Le scelte da adottare in produzione sarebbero le seguenti. Non registrare il valore del parametro di ricerca ma solo il fatto che una ricerca è avvenuta, oppure registrare un hash del parametro (`SHA256(nome)`) che permette di verificare se una specifica persona è stata cercata senza esporre il dato in chiaro. **Nel codice della API è stata realizzata questa seconda strada.**
+
+Definire una retention policy esplicita sull'audit log (es. 24 mesi) con cancellazione automatica. Non registrare mai i risultati restituiti dalla query. Registrare l'identità dell'operatore (oggi assente) piuttosto che l'IP del client, che è dato personale e meno utile per la non ripudiabilità.
+
+### 6.4 Non ripudiabilità in una PA
+
+Il progettino non implementa alcuna autenticazione — chiunque raggiunga la porta 3000 o 8080 può interrogare il dataset. In un contesto PA questo è inaccettabile: serve sapere **chi** ha consultato il dato, non solo da quale IP. Il meccanismo da aggiungere è un layer di autenticazione federata tramite **SPID o CIE** (obbligatori per le PA italiane per l'accesso a dati sensibili), oppure almeno autenticazione tramite certificato client o token JWT firmato emesso da un Identity Provider interno. L'audit log dovrebbe registrare il codice fiscale o l'identificativo univoco dell'operatore autenticato, che costituisce prova legalmente valida di chi ha effettuato la consultazione. Senza questo, l'IP del client è l'unico identificatore disponibile — insufficiente perché non attribuisce l'azione a una persona fisica specifica e può essere condiviso (NAT) o falsificato.
+
+### 6.5 Code di audit parallele in un sistema reale
+
+L'implementazione attuale usa un'unica coda `audit_queue` per tutti gli eventi. In un sistema reale questo approccio non scala e rende difficile applicare policy differenziate per tipo di evento. Un sistema maturo distingue almeno le seguenti code separate: `audit:login` per gli accessi al sistema, con retention lunga e alerting immediato su anomalie; `audit:query` per le consultazioni del dataset, come nel progettino; `audit:export` per le esportazioni di dati, tipicamente soggette a approvazione e tracciatura più stringente; `audit:admin` per le modifiche alla configurazione del sistema, con notifica immediata al responsabile della sicurezza. Code separate permettono consumer dedicati con priorità diverse, retention policy indipendenti, e la possibilità di spegnere o rallentare un consumer senza impattare gli altri. In un'architettura più matura Redis verrebbe sostituito da **Kafka**, che supporta nativamente topic separati, consumer group, replay degli eventi e retention configurabile per topic.
+
+
+
 
 ## 7. Riflessioni e punti aperti
 

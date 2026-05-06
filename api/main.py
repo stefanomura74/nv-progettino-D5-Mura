@@ -46,9 +46,9 @@ def audit_event(endpoint, params, client_ip):
     t.start()
 
 @app.route('/search', methods=['GET'])
-def search_famiglie():
+def search_persone():
     """
-    Cerca famiglie per nome
+    Cerca persone per nome
     ---
     parameters:
       - name: nome
@@ -58,7 +58,7 @@ def search_famiglie():
         description: Nome da cercare
     responses:
       200:
-        description: Lista di famiglie trovate
+        description: Lista di persone trovate
       404:
         description: Nessun risultato trovato
       400:
