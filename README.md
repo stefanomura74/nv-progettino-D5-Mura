@@ -313,7 +313,7 @@ Appena installato WSL - Ubuntu, non era possibile alcun comando `apt get update`
 Il timing dei container non è garantito. `depends_on` in Docker Compose garantisce che il container sia avviato, non che il servizio dentro sia pronto. PostgreSQL impiega alcuni secondi ad accettare connessioni dopo l'avvio del container. 
 In alcuni casi la API può tornare errore se chiamata troppo presto dopo l'avvio del container, lanciandola appena dopo invece funziona:
 
-![alt text](screenshots\image10.png)
+![alt text](screenshots/image10.png)
 
 Probabilmente andrebbe gestito l'errore con una risposta della API ad-hoc.
 
