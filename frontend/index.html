@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Name Search</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 20px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+      background: #f7f7f7;
+    }
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 0.5rem;
+    }
+    .search-box {
+      display: flex;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 0.75rem;
+      font-size: 1rem;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+    }
+    button {
+      padding: 0.75rem 1.2rem;
+      font-size: 1rem;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      background: #0078d4;
+      color: white;
+    }
+    button:hover {
+      background: #005a9e;
+    }
+    #results {
+      background: white;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      padding: 1rem;
+      min-height: 100px;
+    }
+    ul {
+      padding-left: 1.2rem;
+    }
+    table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 0.5rem;
+    }
+    th {
+    background: #0078d4;
+    color: white;
+    padding: 0.6rem 1rem;
+    text-align: left;
+    font-size: 0.9rem;
+    }
+    td {
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #eee;
+    font-size: 0.9rem;
+    }
+    tr:nth-child(even) {
+    background: #f7f7f7;
+    }
+    tr:hover {
+    background: #e8f0fe;
+    }
+    .not-found {
+    color: #888;
+    font-style: italic;
+    }
+    .count {
+    font-size: 0.85rem;
+    color: #555;
+    margin-bottom: 0.5rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Anagrafe Comunale - Name Search</h1>
+  <p>Type a name and click the search button. The page will call the API and show the response.</p>
+  <div class="search-box">
+    <input id="nameInput" type="text" placeholder="Enter name" aria-label="Name">
+    <button id="searchButton">Search</button>
+  </div>
+  <div id="results">Enter a name and click search to see results.</div>
+  <script>
+    const nameInput = document.getElementById('nameInput');
+    const searchButton = document.getElementById('searchButton');
+    const resultsDiv = document.getElementById('results');
+
+    searchButton.addEventListener('click', () => {
+      const name = nameInput.value.trim();
+      if (!name) {
+        resultsDiv.textContent = 'Please enter a name.';
+        return;
+      }
+
+      resultsDiv.textContent = 'Searching...';
+   
+      fetch(`http://localhost:3000/search?nome=${encodeURIComponent(name)}`)
+        .then(response => {
+          if (!response.ok) {
+            throw new Error(`API error ${response.status}`);
+          }
+          return response.json();
+        })
+        .then(data => {
+        if (!data || (Array.isArray(data) && data.length === 0)) {
+            resultsDiv.innerHTML = '<p class="not-found">Nessun risultato trovato.</p>';
+            return;
+        }
+        const items = Array.isArray(data) ? data : [data];
+        
+        let html = `<p class="count">${items.length} risultat${items.length === 1 ? 'o' : 'i'} trovat${items.length === 1 ? 'o' : 'i'}</p>`;
+        html += `
+            <table>
+            <thead>
+                <tr>
+                <th>Nome</th>
+                <th>Anno nascita</th>
+                <th>Cittadinanza</th>
+                <th>Sesso</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${items.map(item => `
+                <tr>
+                    <td>${item.nome}</td>
+                    <td>${item.anno_nascita}</td>
+                    <td>${item.cittadinanza}</td>
+                    <td>${item.sesso === 'M' ? '♂ M' : '♀ F'}</td>
+                </tr>
+                `).join('')}
+            </tbody>
+            </table>
+        `;
+        resultsDiv.innerHTML = html;
+        })
+        .catch(error => {
+        if (error.message.includes('404')) {
+            resultsDiv.innerHTML = '<p class="not-found">Nessun risultato trovato.</p>';
+        } else if (error.message.includes('400')) {
+            resultsDiv.innerHTML = '<p class="not-found">Inserisci un nome da cercare.</p>';
+        } else {
+            resultsDiv.innerHTML = `<p class="not-found">Errore: ${error.message}</p>`;
+        }
+        });
+    });
+  </script>
+</body>
+</html>

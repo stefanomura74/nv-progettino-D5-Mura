@@ -1,0 +1,90 @@
+services: # Define the services for the application
+  frontend: # The frontend service
+    image: nginx:alpine # Use the official Nginx image used for serving static files and reverse proxy
+    ports:
+      - "8080:80" # Map port 80 in the container to port 8080 on the host
+    volumes:
+      - ./frontend:/usr/share/nginx/html # Mount the frontend directory to the Nginx html directory
+    networks:
+      - public # Connect the frontend to the public network
+    depends_on:
+      - api # Ensure the API service is started before the frontend
+
+  api: # The API service
+    build: ./api # Build the API service from the Dockerfile in the api directory
+    ports:
+      - "3000:8000" # Map port 3000 in the container to port 3000 on the host
+    networks:
+      - public # Connect the API to the public network...
+      - private # ...and the private network for database communication
+    environment: # Set environment variables for database and audit connections, those will be used by the API to connect to the respective services
+      DB_HOST: db # Hostname for the database service
+      DB_USER: user # Username for the database service
+      DB_PASS: password # Password for the database service
+      DB_NAME: dataset # Database name for the database service
+      AUDIT_HOST: audit # Hostname for the audit service
+      AUDIT_USER: audituser # Username for the audit service
+      AUDIT_PASS: auditpass # Password for the audit service
+      AUDIT_NAME: auditdb # Database name for the audit service
+    depends_on:
+      - db # Ensure the database service is started before the API
+      - audit # Ensure the audit service is started before the API
+
+  db:  # The database service
+    image: postgres:13 # Use the official PostgreSQL image for the database service
+    environment: # Set environment variables for the PostgreSQL database, these will be used to initialize the database with the specified name, user, and password
+      POSTGRES_DB: dataset # Name of the database to be created when the container starts
+      POSTGRES_USER: user # Username for the PostgreSQL database
+      POSTGRES_PASSWORD: password # Password for the PostgreSQL database
+    networks:
+      - private # Connect the database to the private network for secure communication with the API
+    volumes:
+      - db_data:/var/lib/postgresql/data # Mount a volume to persist the database data across container restarts
+      - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro # Mount the init.sql file to the PostgreSQL initialization directory, this will allow the database to be initialized with the specified SQL commands when the container starts
+      - ./db/famiglie.csv:/data/famiglie.csv:ro # Mount the CSV file to the /data directory in the container, this will allow the API to access the data for processing
+
+  audit: # The audit service
+    image: postgres:13 # Use the official PostgreSQL image for the audit service
+    environment: # Set environment variables for the PostgreSQL database, these will be used to initialize the database with the specified name, user, and password
+      POSTGRES_DB: auditdb # Name of the database to be created when the container starts
+      POSTGRES_USER: audituser # Username for the PostgreSQL database
+      POSTGRES_PASSWORD: auditpass # Password for the PostgreSQL database
+    networks:
+      - private # Connect the audit service to the private network for secure communication with the API
+    volumes:
+      - audit_data:/var/lib/postgresql/data # Mount a volume to persist the audit database data across container restarts
+
+
+  audit-log: # The audit log service, this service will be responsible for processing the audit logs and storing them in the audit database
+    build: ./audit-log # Build the audit log service from the Dockerfile in the audit-log directory
+    networks:
+      - private
+    environment:
+      AUDIT_REDIS_HOST: cache
+      AUDIT_HOST: audit
+      AUDIT_USER: audituser
+      AUDIT_PASS: auditpass
+      AUDIT_NAME: auditdb
+    volumes:
+      - audit_file:/audit-data
+    depends_on:
+      - audit
+      - cache
+
+  cache:
+    image: redis:7-alpine
+    networks:
+      - private
+    volumes:
+      - redis_data:/data
+
+
+networks: # Define the networks for the application
+  public: # The public network for services that need to be accessible from outside the Docker environment (e.g., frontend and API)
+  private: # The private network for internal communication between services (e.g., API, database, and audit)
+
+volumes: # Define the volumes for data persistence
+  db_data: # Volume for persisting the database data, ensuring that data is not lost when the database container is restarted or removed
+  audit_data: # Volume for persisting the audit database data, ensuring that audit logs are not lost when the audit container is restarted or removed
+  audit_file:
+  redis_data:
