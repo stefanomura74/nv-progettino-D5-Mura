@@ -375,5 +375,4 @@ L'implementazione attuale usa un'unica coda `audit_queue` per tutti gli eventi. 
 
 ## 7. Riferimenti
 
-(Link a documentazione ufficiale, articoli, slide del corso, guide
-dei materiali del corso che hai usato.)
+- Docker_WSL2_Guida_Esercitazioni.md
