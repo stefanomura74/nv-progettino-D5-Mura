@@ -173,7 +173,7 @@ Aprire `http://localhost:8080` — si apre l'interfaccia di ricerca. Inserire un
 
 Il log si popola con la ricerca:
 ```bash
-$ docker compose exec audit-log cat /audit-data/audit.log
+docker compose exec audit-log cat /audit-data/audit.log
 ```
 ![alt text](screenshots/image-5.png)
 
@@ -184,7 +184,7 @@ Effettuando una successiva ricerca:
 Il log aggiunge la nuova riga:
 
 ```bash
-$ docker compose exec audit-log cat /audit-data/audit.log
+docker compose exec audit-log cat /audit-data/audit.log
 ```
 ![alt text](screenshots/image-4.png)
 
@@ -304,7 +304,10 @@ docker compose exec frontend sh
 # Una volta dentro, prova a raggiungere db
 wget -q --timeout=3 db && echo "raggiungibile" || echo "non raggiungibile"
 
-# Oppure installa ping al volo (solo per il test, non persiste)
+# provare a fare il ping
+ping -c 3 db
+
+# se non è installato, installa ping al volo 
 apk add --no-cache iputils
 ping -c 3 db
 # Output atteso: ping: db: Name or address not found
@@ -329,7 +332,7 @@ Appena installato WSL - Ubuntu, non era possibile alcun comando `apt get update`
 
 #### Timing dei container
 Il timing dei container non è garantito. `depends_on` in Docker Compose garantisce che il container sia avviato, non che il servizio dentro sia pronto. PostgreSQL impiega alcuni secondi ad accettare connessioni dopo l'avvio del container. 
-In alcuni casi la API può tornare errore se chiamata troppo presto dopo l'avvio del container, lanciandola appena dopo invece funziona:
+In alcuni casi la API può tornare errore se chiamata troppo presto dopo l'avvio del container, lanciandola appena dopo invece funziona, ad es.:
 
 ![alt text](screenshots/image10.png)
 
@@ -337,14 +340,13 @@ Probabilmente andrebbe gestito l'errore con una risposta della API ad-hoc.
 
 
 #### I file CSV generati su Windows hanno line ending \r\n.
-Ho caricato il db di test con un file opendata csv. PostgreSQL su Linux si aspetta \n. Il comando `COPY` falliva con "unquoted newline found in data" — un errore non intuitivo che non menziona esplicitamente i caratteri di fine riga. La soluzione è stata `dos2unix` sul file prima dell'import.
+Ho caricato il db di test con un file opendata csv. PostgreSQL su Linux si aspetta \n come fine riga. Il comando `COPY` falliva con "unquoted newline found in data" — un errore non intuitivo che non menziona esplicitamente i caratteri di fine riga. La soluzione è stata `dos2unix` sul file prima dell'import.
 
 #### Il port mapping nel compose.
-Ad uno dei primi avvii, tutto girava senza errori ma non ottenevo risultati. L'istruzione `3000:3000` nel compose significa porta 3000 dell'host verso porta 3000 del container. Se l'applicazione dentro il container ascolta su 8000, il mapping corretto è `3000:8000`. L'errore è silenzioso, la porta era aperta ma nessuno rispondeva dall'altro lato. Il mapping va fatto ragionando sul servizio, non solo sul container.
+Ad uno dei primi avvii, tutto girava senza errori ma non ottenevo risultati. L'istruzione `3000:3000` nel compose significa porta 3000 dell'host verso porta 3000 del container. Se l'applicazione dentro il container ascolta su 8000, il mapping corretto era `3000:8000`. L'errore è silenzioso, la porta era aperta ma nessuno rispondeva dall'altro lato. Il mapping va fatto ragionando sul servizio, non solo sul container.
 
 ### 6.2 Cosa migliorerei
-Variabili sensibili fuori dal compose. Password e Utenze sono in chiaro nel `docker-compose.yml`. Averli in chiaro va bene per un progetto didattico ma è un'abitudine da non portare avanti.
-
+Variabili sensibili fuori dal compose. Password e Utenze sono in chiaro nel `docker-compose.yml`. Averli in chiaro va bene per un progetto didattico ma è un'abitudine non applicabile in un progetto vero.
 
 
 ### Rendere l'audit log non manomissibile
@@ -357,7 +359,7 @@ In alternativa, la firma digitale periodica dei log con una chiave privata custo
 
 ### Compliance GDPR nell'audit log
 
-Il dataset contiene dati personali (nome, anno di nascita, cittadinanza, sesso). L'audit log attuale registra il parametro di ricerca `nome` in chiaro — questo è problematico perché il log stesso diventa un archivio di dati personali soggetto al GDPR, con obblighi di retention, cancellazione e accesso. Le scelte da adottare in produzione sarebbero le seguenti:
+Il dataset contiene dati personali (nome, anno di nascita, cittadinanza, sesso). L'audit log attuale registra il parametro di ricerca `nome` in chiaro — questo è problematico perché il log stesso diventa un archivio di dati personali soggetto al GDPR, con obblighi di retention, cancellazione e accesso. Le scelte da adottare in produzione potrebbero essere le seguenti:
 - Non registrare il valore del parametro di ricerca ma solo il fatto che una ricerca è avvenuta.
 - Definire una retention policy esplicita sull'audit log (es. 24 mesi) con cancellazione automatica. 
 - Registrare un hash del parametro (`SHA256(nome)`) che permette di verificare se una specifica persona è stata cercata senza esporre il dato in chiaro. **Nel codice della API è stata realizzata solo questa ultima strada.**
