@@ -110,6 +110,15 @@ Internet (browser)
 git clone https://github.com/.../nv-progettino-D5-mura.git
 cd nv-progettino-D5-mura
 
+```
+
+A questo putno si può decidere di fare tutto in automatico attraverso lo script `setup.sh` oppure manualmente:
+
+### 4.1 Setup automatico
+
+
+
+```bash
 # 2. Verificare che Docker sia avviato
 sudo service docker start
 # Output atteso: * Starting Docker: docker  [ OK ]
