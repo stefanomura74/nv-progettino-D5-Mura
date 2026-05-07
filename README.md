@@ -122,6 +122,9 @@ Lanciare dalla root del progetto il comando:
 bash scripts/setup.sh
 
 ```
+![alt text](screenshots/image.png)
+
+
 ### 4.2 Setup manuale
 
 ```bash

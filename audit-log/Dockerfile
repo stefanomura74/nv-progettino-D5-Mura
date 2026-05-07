@@ -6,4 +6,4 @@ RUN pip install --no-cache-dir psycopg2-binary redis
 
 COPY consumer.py .
 
-CMD ["python", "consumer.py"]
+CMD ["python", "-u", "consumer.py"]
