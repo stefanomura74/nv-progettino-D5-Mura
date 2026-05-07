@@ -116,7 +116,13 @@ A questo putno si può decidere di fare tutto in automatico attraverso lo script
 
 ### 4.1 Setup automatico
 
+Lanciare dalla root del progetto il comando:
 
+```bash
+bash scripts/setup.sh
+
+```
+### 4.2 Setup manuale
 
 ```bash
 # 2. Verificare che Docker sia avviato

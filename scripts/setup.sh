@@ -33,11 +33,10 @@ echo ""
 echo "[2/5] Verifica struttura progetto..."
 
 #lo script è dentro la cartella scripts, quindi torno alla root del progetto
-cd ..  # torna alla root del progetto
 
 
 REQUIRED_FILES=(
-    "compose.yml"
+    "compose.yaml"
     "frontend/index.html"
     "api/Dockerfile"
     "api/requirements.txt"
