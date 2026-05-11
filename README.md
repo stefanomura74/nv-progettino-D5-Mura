@@ -107,7 +107,7 @@ Internet (browser)
 
 ```bash
 # 1. Clonare il repository
-git clone https://github.com/.../nv-progettino-D5-mura.git
+git clone https://github.com/stefanomura74/nv-progettino-D5-mura.git
 cd nv-progettino-D5-mura
 
 ```
